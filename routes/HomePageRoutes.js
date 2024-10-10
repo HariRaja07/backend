@@ -4,14 +4,13 @@ module.exports = (controllers) => {
     const router = express.Router();
 
     // Banner routes
-    router.post('/banner', controllers.createBanner);
+    
     router.get('/banner', controllers.getBanners);
     router.delete('/banner/:id', controllers.deleteBanner);
 
     // Solution routes
-    router.post('/solutions', controllers.createSolution);
+    
     router.get('/solutions', controllers.getSolutions);
-    router.put('/solutions/:id', controllers.updateSolution);
     router.delete('/solutions/:id', controllers.deleteSolution);
 
     // Service routes
