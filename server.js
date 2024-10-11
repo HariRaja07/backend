@@ -83,6 +83,52 @@ const teamMemberSchema = new mongoose.Schema({
 
 const TeamMember = mongoose.model('TeamMember', teamMemberSchema);
 
+const logoSchema = new mongoose.Schema({
+    image: String,
+});
+const Logo = mongoose.model('Logo', logoSchema);
+
+app.get('/api/Logo', async (req, res) => {
+    try {
+        const logo = await Logo.findOne();
+        res.send(logo);
+    } catch (error) {
+        res.status(500).send('Error fetching logo');
+    }
+});
+
+app.post('/api/logo', upload.single("image"), async (req, res) => {
+    try {
+        const logo = new Logo({ image: req.file.path });
+        await logo.save();
+        res.send(logo);
+    } catch (error) {
+        res.status(500).send({ error: 'Failed to create Logo' });
+    }
+});
+
+app.delete('/api/logo', async (req, res) => {
+    await Logo.deleteMany({}); // Deletes all auditHero entries, ensuring there's only one
+    res.send({ message: 'Logo deleted successfully' });
+});
+
+app.put('/api/logo', upload.single("image"), async (req, res) => {
+    try {
+        const updateData = {}; 
+        // If a new file is uploaded, include the image in the update
+        if (req.file) {
+            updateData.image = req.file.path;
+        }
+        const logo = await Logo.findOneAndUpdate({}, updateData, { new: true });
+        if (!logo) {
+            return res.status(404).send({ error: 'Logo not found' });
+        }
+        res.send(logo);
+    } catch (error) {
+        res.status(500).send({ error: 'Failed to update Logo' });
+    }
+});
+
 // Routes for contacts
 app.post('/api/contact', async (req, res) => {
     const { fullName, institutionName, email, phone, service, message } = req.body;
@@ -112,6 +158,16 @@ app.get('/api/contacts', async (req, res) => {
         res.status(500).send('Error fetching contacts');
     }
 });
+
+app.delete('/api/contacts/:id', async (req, res) => {
+    try {
+      const { id } = req.params;
+      await Contact.findByIdAndDelete(id);
+      res.status(200).send('Contact deleted successfully');
+    } catch (err) {
+      res.status(500).send('Error deleting contact');
+    }
+  });
 
 // Routes for team members
 app.get('/api/team-members', async (req, res) => {
