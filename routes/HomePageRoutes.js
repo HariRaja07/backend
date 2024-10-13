@@ -4,12 +4,13 @@ module.exports = (controllers) => {
     const router = express.Router();
 
     // Banner routes
-    
+    router.post('/banner', controllers.upload.single("image"), controllers.createBanner);
     router.get('/banner', controllers.getBanners);
     router.delete('/banner/:id', controllers.deleteBanner);
 
     // Solution routes
-    
+    router.post('/solutions',controllers.upload.single("image"), controllers.createSolution);
+    router.put('/solutions/:id',controllers.upload.single("image"), controllers.updateSolution);
     router.get('/solutions', controllers.getSolutions);
     router.delete('/solutions/:id', controllers.deleteSolution);
 

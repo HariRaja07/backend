@@ -1,9 +1,35 @@
 const models = require('../models/AuditPageModels');
+const cloudinary = require('cloudinary').v2;
+const multer = require('multer');
 
+const upload = multer({ storage: multer.memoryStorage() });
+
+cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+const uploadImage = async (req) => {
+    return new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+            { resource_type: 'auto', public_id: `your_prefix/${req.file.originalname}` },
+            (error, result) => {
+                if (error) {
+                    return reject(error);
+                }
+                resolve(result);
+            }
+        );
+
+        stream.end(req.file.buffer);
+    });
+};
 // AuditBanner Controller
 const createAuditBanner = async (req, res) => {
     try {
-        const auditBanner = new models.AuditBanner({ image: req.file.path });
+        const result = await uploadImage(req);
+        const auditBanner = new models.AuditBanner({ image: result.secure_url, });
         await auditBanner.save();
         res.send(auditBanner);
     } catch (error) {
@@ -22,6 +48,17 @@ const getAuditBanners = async (req, res) => {
 
 const deleteAuditBanner = async (req, res) => {
     const { id } = req.params;
+    const auditBanner = await models.AuditBanner.findById(id);
+
+        if (!auditBanner) {
+            return res.status(404).send({ message: ' Audit Banner not found' });
+        }
+
+        // Extract the public_id from the image URL
+        const public_id = auditBanner.image.split('/').pop().split('.')[0]; // Adjust this based on your URL format
+
+        // Delete the image from Cloudinary
+        await cloudinary.uploader.destroy(public_id);
     await models.AuditBanner.findByIdAndDelete(id);
     res.send({ message: 'AuditBanner deleted successfully' });
 };
@@ -29,10 +66,11 @@ const deleteAuditBanner = async (req, res) => {
 // AuditHero Controller
 const createAuditHero = async (req, res) => {
     try {
+        const result = await uploadImage(req);
         const auditHero = new models.AuditHero({
             title: req.body.title,
             description: req.body.description,
-            image: req.file.path,
+            image: result.secure_url,
         });
         await auditHero.save();
         res.status(201).send(auditHero);
@@ -48,15 +86,18 @@ const getAuditHero = async (req, res) => {
 
 const updateAuditHero = async (req, res) => {
     try {
+
+        let imageUrl;
+        if(req.file){
+            const result = await uploadImage(req);
+            imageUrl = result.secure_url;
+        }
+
         const updateData = {
             title: req.body.title,
             description: req.body.description,
+            ...(imageUrl && {image: imageUrl})
         };
-
-        // If a new file is uploaded, include the image in the update
-        if (req.file) {
-            updateData.image = req.file.path;
-        }
 
         const auditHero = await models.AuditHero.findOneAndUpdate({}, updateData, { new: true });
         res.json(auditHero);
@@ -67,6 +108,17 @@ const updateAuditHero = async (req, res) => {
 
 
 const deleteAuditHero = async (req, res) => {
+    const auditHero = await models.AuditHero.findOne();
+
+        if (!auditHero) {
+            return res.status(404).send({ message: 'Hero image not found' });
+        }
+
+        // Extract the public_id from the image URL
+        const public_id = auditHero.image.split('/').pop().split('.')[0]; // Adjust this based on your URL format
+
+        // Delete the image from Cloudinary
+        await cloudinary.uploader.destroy(public_id);
     await models.AuditHero.deleteMany({}); // Deletes all auditHero entries, ensuring there's only one
     res.send({ message: 'AuditHero deleted successfully' });
 };
@@ -123,6 +175,7 @@ module.exports = {
     createAuditHero,
     getAuditHero,
     updateAuditHero,
+    upload,
     deleteAuditHero,
     createAuditData,
     getAuditData,

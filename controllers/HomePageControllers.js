@@ -1,10 +1,50 @@
 const models = require('../models/HomePageModels');
+const cloudinary = require('cloudinary').v2;
+const multer = require('multer');
+
+const upload = multer({ storage: multer.memoryStorage() });
+
+cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+const uploadImage = async (req) => {
+    return new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+            { resource_type: 'auto', public_id: `your_prefix/${req.file.originalname}` },
+            (error, result) => {
+                if (error) {
+                    return reject(error);
+                }
+                resolve(result);
+            }
+        );
+
+        stream.end(req.file.buffer);
+    });
+};
 
 // Banner Controller
 const createBanner = async (req, res) => {
-    const banner = new models.Banner({ image: req.file.path });
-    await banner.save();
-    res.send(banner);
+    try {
+        if (!req.file) {
+            return res.status(400).json({ error: 'No file uploaded' });
+        }
+
+        const result = await uploadImage(req);
+
+        const banner = new models.Banner({
+            image: result.secure_url,
+        });
+
+        const savedBanner = await banner.save();
+        res.status(201).json(savedBanner);
+    } catch (err) {
+        console.error('Error occurred:', err);
+        res.status(500).json({ error: err.message });
+    }
 };
 
 const getBanners = async (req, res) => {
@@ -14,16 +54,28 @@ const getBanners = async (req, res) => {
 
 const deleteBanner = async (req, res) => {
     const { id } = req.params;
+    const banner = await models.Banner.findById(id);
+
+        if (!banner) {
+            return res.status(404).send({ message: 'Banner not found' });
+        }
+
+        // Extract the public_id from the image URL
+        const public_id = banner.image.split('/').pop().split('.')[0]; // Adjust this based on your URL format
+
+        // Delete the image from Cloudinary
+        await cloudinary.uploader.destroy(public_id);
     await models.Banner.findByIdAndDelete(id);
     res.send({ message: 'Banner deleted successfully' });
 };
 
 // Solution Controller
 const createSolution = async (req, res) => {
+    const result = await uploadImage(req);
     const solution = new models.Solution({
         title: req.body.title,
         description: req.body.description,
-        image: req.file.path,
+        image: result.secure_url,
     });
     await solution.save();
     res.send(solution);
@@ -36,12 +88,50 @@ const getSolutions = async (req, res) => {
 
 const updateSolution = async (req, res) => {
     const { id } = req.params;
-    const updatedSolution = await models.Solution.findByIdAndUpdate(id, req.body, { new: true });
-    res.send(updatedSolution);
+
+    try {
+        // If a new image is provided, upload it to Cloudinary
+        let imageUrl;
+        if (req.file) {
+            const result = await uploadImage(req); // Upload the new image
+            imageUrl = result.secure_url; // Get the new image URL
+        }
+
+        // Prepare the update object
+        const updateData = {
+            title: req.body.title,
+            description: req.body.description,
+            ...(imageUrl && { image: imageUrl }) // Only include image if it exists
+        };
+
+        // Update the solution in the database
+        const updatedSolution = await models.Solution.findByIdAndUpdate(id, updateData, { new: true });
+        
+        if (!updatedSolution) {
+            return res.status(404).send({ error: 'Solution not found' });
+        }
+
+        res.send(updatedSolution);
+    } catch (err) {
+        console.error('Error occurred:', err);
+        res.status(500).send({ error: err.message });
+    }
 };
+
 
 const deleteSolution = async (req, res) => {
     const { id } = req.params;
+    const solution = await models.Solution.findById(id);
+
+        if (!solution) {
+            return res.status(404).send({ message: 'Solution image not found' });
+        }
+
+        // Extract the public_id from the image URL
+        const public_id = solution.image.split('/').pop().split('.')[0]; // Adjust this based on your URL format
+
+        // Delete the image from Cloudinary
+        await cloudinary.uploader.destroy(public_id);
     await models.Solution.findByIdAndDelete(id);
     res.send({ message: 'Solution deleted successfully' });
 };
@@ -120,6 +210,7 @@ const deleteHero = async (req, res) => {
 module.exports = {
     createBanner,
     getBanners,
+    upload,
     deleteBanner,
     createSolution,
     getSolutions,
