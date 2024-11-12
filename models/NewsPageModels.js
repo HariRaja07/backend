@@ -5,7 +5,7 @@ const NewsSchema = new mongoose.Schema({
     Heading: String,
     description: String,
     format: { type: String, enum: ['paragraph', 'points'], default: 'paragraph' }, // New field to indicate format
-});
+},{ timestamps: true });
 
 const News = mongoose.model('News', NewsSchema);
 

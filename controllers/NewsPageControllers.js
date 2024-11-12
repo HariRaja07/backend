@@ -8,7 +8,7 @@ const createNews = async (req, res) => {
 };
 
 const getNews = async (req, res) => {
-    const news = await models.News.find();
+    const news = await models.News.find().sort({ createdAt: -1 });
     res.send(news);
 };
 

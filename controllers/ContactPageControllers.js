@@ -1,5 +1,28 @@
 const models = require('../models/ContactPageModels');
 
+
+const createContactDet = async (req, res) => {
+  const contactDet = new models.ContactDet(req.body);
+  await contactDet.save();
+  res.send(contactDet);
+};
+
+const getContactDet = async (req, res) => {
+  const contactDet = await models.ContactDet.findOne(); // Fetch only one hero document
+  res.send(contactDet);
+};
+
+const updateContactDet = async (req, res) => {
+  const contactDet = await models.ContactDet.findOneAndUpdate({}, req.body, { new: true }); // Update the existing hero
+  res.json(contactDet);
+};
+
+const deleteContactDet = async (req, res) => {
+  await models.ContactDet.deleteMany({}); // Deletes all hero entries, ensuring there's only one
+  res.send({ message: 'Contact Details deleted successfully' });
+};
+
+
 const createContact = async (req, res) => {
     const contact = new models.Contact(req.body);
     await contact.save();
@@ -29,4 +52,8 @@ const deleteContact = async (req, res) => {
     createContact,
     getContact,
     deleteContact,
+    createContactDet,
+    getContactDet,
+    updateContactDet,
+    deleteContactDet,
 };
